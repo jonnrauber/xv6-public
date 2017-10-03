@@ -71,7 +71,7 @@ myproc(void) {
 // state required to run in the kernel.
 // Otherwise return 0.
 static struct proc*
-allocproc(void)
+allocproc(int tickets)
 {
   struct proc *p;
   char *sp;
@@ -88,6 +88,13 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
+
+  if(tickets <= 0) 
+    p->tickets = 1; 
+  else if(tickets > MAX_TICKETS) 
+    p->tickets = MAX_TICKETS; 
+  else 
+    p->tickets = tickets; 
 
   release(&ptable.lock);
 
@@ -123,7 +130,7 @@ userinit(void)
   struct proc *p;
   extern char _binary_initcode_start[], _binary_initcode_size[];
 
-  p = allocproc();
+  p = allocproc(1);
   
   initproc = p;
   if((p->pgdir = setupkvm()) == 0)
@@ -178,14 +185,14 @@ growproc(int n)
 // Sets up stack to return as if from system call.
 // Caller must set state of returned proc to RUNNABLE.
 int
-fork(void)
+fork(int tickets)
 {
   int i, pid;
   struct proc *np;
   struct proc *curproc = myproc();
 
   // Allocate process.
-  if((np = allocproc()) == 0){
+  if((np = allocproc(1)) == 0){
     return -1;
   }
 
@@ -213,6 +220,11 @@ fork(void)
   pid = np->pid;
 
   acquire(&ptable.lock);
+
+  if(tickets < 1) 
+    tickets = 1; 
+  else if (tickets > MAX_TICKETS) 
+    np->tickets = tickets; 
 
   np->state = RUNNABLE;
 
@@ -532,3 +544,77 @@ procdump(void)
     cprintf("\n");
   }
 }
+
+///sorteio 
+static unsigned long int next = 1; 
+ 
+int 
+rand(int tickets_total) 
+{ 
+    next = next * 1103515245 + 12345; 
+    return (unsigned int)(next/65536) % tickets_total; 
+} 
+ 
+void 
+srand(unsigned int seed) 
+{ 
+    next = seed; 
+} 
+ 
+void 
+lottery_scheduler(void) { 
+  struct proc *p; 
+  struct cpu *c = mycpu(); 
+  c->proc = 0; 
+  int tickets_total, sorteado; 
+   
+  for(;;){ 
+    // Enable interrupts on this processor. 
+    sti(); 
+ 
+    /// Soma todos os tickets que estão em jogo (de processos prontos) 
+    acquire(&ptable.lock); 
+    tickets_total = 0; 
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) 
+    if(p->state == RUNNABLE) 
+    tickets_total += p->tickets; 
+     
+    if (tickets_total == 0) { 
+    release(&ptable.lock); 
+    continue; 
+  } 
+    /// faz o sorteio entre 0 e tickets_total - 1 
+    sorteado = rand(tickets_total); 
+    cprintf("Total %d: sorteado %d\n", tickets_total, sorteado); 
+     
+    tickets_total = 0; /// reiniciado para procurar o vencedor 
+     
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){ 
+      if(p->state != RUNNABLE) 
+        continue; 
+ 
+    if(tickets_total + p->tickets >= sorteado) { 
+    cprintf("PID ----- %d\n", p->pid); 
+    // Switch to chosen process.  It is the process's job 
+    // to release ptable.lock and then reacquire it 
+    // before jumping back to us. 
+    c->proc = p; 
+    switchuvm(p); 
+    p->state = RUNNING; 
+ 
+    swtch(&(c->scheduler), p->context); 
+    switchkvm(); 
+ 
+    // Process is done running for now. 
+    // It should have changed its p->state before coming back. 
+    c->proc = 0; 
+    break; 
+    } 
+     
+    tickets_total += p->tickets; ///continua procurando 
+    } 
+    release(&ptable.lock); 
+ 
+  } 
+} 
+
