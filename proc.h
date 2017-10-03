@@ -52,8 +52,6 @@ struct proc {
   int tickets;                 // Quantidade de tickets do processo, quando pronto, para o escalonamento por loteria
 };
 
-#define MAX_TICKETS 500
-
 // Process memory is laid out contiguously, low addresses first:
 //   text
 //   original data and bss
