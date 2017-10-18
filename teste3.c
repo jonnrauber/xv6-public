@@ -7,12 +7,10 @@
 void loop(int p){
 	double i, j;
 
-	printf(1, "\np%d -- Comecei\n", p);
-
-	for(i = 0; i < 100000; i++)
+	for(i = 0; i < 10000; i++)
 		for(j=0; j < 10000; j++);
 
-	printf(1, "\np%d -- Terminei\n", p);
+	printf(1, "%d\n", p);
 }
 
 int main(void){
