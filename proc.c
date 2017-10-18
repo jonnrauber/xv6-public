@@ -222,7 +222,7 @@ fork(int tickets)
   acquire(&ptable.lock);
 
   if(tickets < 1) 
-    tickets = 1; 
+    np->tickets = 1; 
   else if (tickets > MAX_TICKETS) 
     np->tickets = MAX_TICKETS;
   else
