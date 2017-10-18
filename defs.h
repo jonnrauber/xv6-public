@@ -105,7 +105,7 @@ int             pipewrite(struct pipe*, char*, int);
 // proc.c
 int             cpuid(void);
 void            exit(void);
-int             fork(void);
+int             fork(int tickets);
 int             growproc(int);
 int             kill(int);
 struct cpu*     mycpu(void);
@@ -116,6 +116,7 @@ void            scheduler(void) __attribute__((noreturn));
 void            sched(void);
 void            setproc(struct proc*);
 void            sleep(void*, struct spinlock*);
+void			stride_scheduler(void) __attribute__ ((noreturn));
 void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
