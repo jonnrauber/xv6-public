@@ -8,9 +8,11 @@
 #include "proc.h"
 
 int
-sys_fork(void)
+sys_fork(int tickets)
 {
-  return fork();
+	if(tickets <= 0 || tickets > MAXPASSO)
+    tickets = 10;
+  return fork(tickets);
 }
 
 int

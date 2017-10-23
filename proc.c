@@ -212,11 +212,11 @@ fork(int tickets)
 
   pid = np->pid;
   
-  if(tickets <= 0 || tickets > PASSOMAX)
+  if(tickets <= 0 || tickets > MAXPASSO)
     tickets = 10;
     
   np->passada = 0;
-  np->passo = PASSOMAX / tickets;
+  np->passo = MAXPASSO / tickets;
   
   acquire(&ptable.lock);
 
@@ -549,42 +549,42 @@ void stride_scheduler() {
     // Enable interrupts on this processor.
     sti();
 	
-	contador = 0;
-	
-	menor_passada = proc_menor_passada = -1;
-	
-	/// percorre ptable procurando pelo processo de menor passada
-    acquire(&ptable.lock);
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->state == RUNNABLE) {      
-		  if(contador == 0 || p->passada < menor_passada) {
-			menor_passada = p->passada;	
-			proc_menor_passada = contador;
-		  }
-	  }
-	  contador++;
-	}
-	
-	if(proc_menor_passada != -1) {
-	  /// escolhe o processo de menor passada
-	  p = ptable.proc[proc_menor_passada];
-      // Switch to chosen process.  It is the process's job
-      // to release ptable.lock and then reacquire it
-      // before jumping back to us.
-      c->proc = p;
-      switchuvm(p);
-      p->state = RUNNING;
-      
-      /// incrementa a passada do processo
-      p->passada += p->passo;
+		contador = 0;
+		
+		menor_passada = proc_menor_passada = -1;
+		
+		/// percorre ptable procurando pelo processo de menor passada
+		acquire(&ptable.lock);
+		for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+			if(p->state == RUNNABLE) {      
+				if(contador == 0 || p->passada < menor_passada) {
+					menor_passada = p->passada;	
+					proc_menor_passada = contador;
+				}
+			}
+			contador++;
+		}	
+		
+		if(proc_menor_passada != -1) {
+			/// escolhe o processo de menor passada
+			p = &ptable.proc[proc_menor_passada];
+			// Switch to chosen process.  It is the process's job
+			// to release ptable.lock and then reacquire it
+			// before jumping back to us.
+			c->proc = p;
+			switchuvm(p);
+			p->state = RUNNING;
+			
+			/// incrementa a passada do processo
+			p->passada += p->passo;
 
-      swtch(&(c->scheduler), p->context);
-      switchkvm();
+			swtch(&(c->scheduler), p->context);
+			switchkvm();
 
-      // Process is done running for now.
-      // It should have changed its p->state before coming back.
-      c->proc = 0;
-    }
+			// Process is done running for now.
+			// It should have changed its p->state before coming back.
+			c->proc = 0;
+		}
 		
     release(&ptable.lock);
 
