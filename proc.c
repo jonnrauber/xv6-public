@@ -545,7 +545,18 @@ procdump(void)
   }
 }
 
-void stride_scheduler() {
+void 
+zera_passada(void)
+{
+	struct proc *p;
+	for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+		if(p->state == RUNNABLE)
+			p->passada = 0;
+}
+
+void 
+stride_scheduler(void) 
+{
   struct proc *p, *sel;
   struct cpu *c = mycpu();
   c->proc = 0;
@@ -554,40 +565,38 @@ void stride_scheduler() {
   for(;;){
     // Enable interrupts on this processor.
     sti();
-		
-		/// percorre ptable procurando pelo processo de menor passada
-		acquire(&ptable.lock);
-		
-		menor_passada = -1; contador = 0; sel = 0;
-		for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-			if(p->state == RUNNABLE) {      
-				if(contador == 0 || p->passada < menor_passada) {
-					menor_passada = p->passada;	
-					sel = p;
-					contador = 1;
-				}
+	/// percorre ptable procurando pelo processo de menor passada
+	acquire(&ptable.lock);
+	
+	menor_passada = -1; contador = 0; sel = 0;
+	for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+		if(p->state == RUNNABLE) {
+			if(contador == 0 || p->passada < menor_passada) {
+				menor_passada = p->passada;	
+				sel = p;
+				contador = 1;
 			}
-		}	
-		
-		if(sel != 0) {
-			/// escolhe o processo de menor passada
-			// Switch to chosen process.  It is the process's job
-			// to release ptable.lock and then reacquire it
-			// before jumping back to us.
-			c->proc = sel;
-			switchuvm(sel);
-			sel->state = RUNNING;
-			
-			/// incrementa a passada do processo
-			sel->passada += sel->passo;
-
-			swtch(&(c->scheduler), sel->context);
-			switchkvm();
-
-			// Process is done running for now.
-			// It should have changed its p->state before coming back.
-			c->proc = 0;
 		}
+	}
+	
+	if(sel != 0) {
+		if(menor_passada < 0) {
+			/// verifica se algum processo deu overflow na passada
+			zera_passada();
+			continue;
+		}
+		/// escolhe o processo de menor passada
+		c->proc = sel;
+		switchuvm(sel);
+		sel->state = RUNNING;
+		/// incrementa a passada do processo
+		sel->passada += sel->passo;
+		swtch(&(c->scheduler), sel->context);
+		switchkvm();
+		// Process is done running for now.
+		// It should have changed its p->state before coming back.
+		c->proc = 0;
+	}
 		
     release(&ptable.lock);
 
